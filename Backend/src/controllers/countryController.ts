@@ -17,25 +17,53 @@ interface Country {
   // Helper function to fetch all countries data from the REST API
   const fetchCountriesData = async (): Promise<Country[]> => {
     try {
-      const response = await axios.get<Country[]>(`${API_URL}/all?fields=name,region,capital,timezones`);
+      const response = await axios.get<Country[]>(`${API_URL}/all?fields=name,region,capital,timezones,flags,currencies`);
       return response.data;
     } catch (error) {
       console.error('Error fetching countries:', error);
       throw new Error('Failed to fetch countries data in commom API caller');
     }
   };
+
+  const paginateData = (data: Country[], page: number, limit: number) => {
+    const totalItems = data.length;
+    const totalPages = Math.ceil(totalItems / limit);
+    const offset = (page - 1) * limit;
+    const paginatedItems = data.slice(offset, offset + limit);
+  
+    return {
+      data: paginatedItems,
+      pagination: {
+        totalItems,
+        totalPages,
+        currentPage: page,
+        itemsPerPage: limit,
+      },
+    };
+  };
   
   // Controller to get all countries
   const getAllCountries = async (req: Request, res: Response): Promise<any> => {
+    const { page = 1, limit = 10 } = req.query;
+
+    const pageNumber = parseInt(page as string, 10);
+    const limitNumber = parseInt(limit as string, 10);
+
+    if (pageNumber < 1 || limitNumber < 1) {
+      return res.status(400).json({ error: 'Page and limit must be greater than 0.' });
+    }
+
     const cachedData = countryCache.get<Country[]>('allCountries');
     if (cachedData) {
-      return res.json(cachedData);
+      const paginatedData = paginateData(cachedData, pageNumber, limitNumber);
+      return res.json(paginatedData);
     }
   
     try {
       const countries = await fetchCountriesData();
       countryCache.set('allCountries', countries);
-      return res.json(countries);
+      const paginatedData = paginateData(countries, pageNumber, limitNumber);
+      return res.json(paginatedData);
     } catch (error) {
       return res.status(500).json({ error: 'Failed to fetch countries data' });
     }

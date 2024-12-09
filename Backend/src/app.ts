@@ -1,8 +1,11 @@
 import express from 'express';
 import countryRoutes from './routes/countryRoutes';
+import cors from 'cors';
 
 const app = express();
-const PORT = 3000;
+app.use(cors());
+
+const PORT = 3001;
 
 app.use(express.json());
 
